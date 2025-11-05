@@ -235,7 +235,8 @@ Deliver precise, knowledge-grounded responses that help the user efficiently rea
 
 ---
 
-## 💻 5. React Frontend
+## 💻 5. React Frontend (Optional)
+<img width="1083" height="1140" alt="image" src="https://github.com/user-attachments/assets/69157dc3-1225-4455-a537-c1322b9cafe4" />
 
 ### Repository Structure
 - **Frontend Code**: Located in the `frontend/` folder
