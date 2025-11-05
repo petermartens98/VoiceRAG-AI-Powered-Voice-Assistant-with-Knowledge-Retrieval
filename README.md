@@ -1,18 +1,32 @@
 # 🎙️ VoiceRAG: AI-Powered Voice Assistant with Knowledge Retrieval
 
-> Combine natural voice interaction with intelligent document search using RAG (Retrieval-Augmented Generation)
+> Transform your documents into an intelligent voice assistant—ask questions naturally and get accurate, context-aware answers drawn from your own knowledge base.
 
 ## 🌟 Overview
 
-**VoiceRAG** is an end-to-end voice-powered knowledge assistant that lets you talk to your documents. It combines:
+**VoiceRAG** is an end-to-end voice-powered knowledge assistant that bridges the gap between natural conversation and document intelligence. Simply speak your questions and receive instant, accurate answers synthesized from your uploaded documents.
 
-- **🗣️ Voice Interaction** via ElevenLabs Voice Agents
-- **🧠 AI Intelligence** powered by OpenAI GPT models
-- **📚 Document Retrieval** using vector embeddings and semantic search
-- **⚡ Automation** through n8n workflows
-- **💾 Storage** with Google Drive and Supabase
+### What It Does
+Upload your documents (PDFs, text files, reports, guides) and VoiceRAG automatically:
+- Processes and embeds them into a searchable vector database
+- Understands your spoken questions using advanced AI
+- Retrieves the most relevant information from your documents
+- Synthesizes natural, conversational responses
+- Delivers answers back to you through voice
 
-Ask questions naturally, and get answers drawn from your own knowledge base—all through voice.
+### Technology Stack
+- **🗣️ Voice Interaction** - ElevenLabs Voice Agents for natural conversation
+- **🧠 AI Intelligence** - OpenAI GPT models for context-aware responses
+- **📚 Document Retrieval** - Vector embeddings and semantic search with Cohere reranking
+- **⚡ Automation** - n8n workflows for seamless data pipeline orchestration
+- **💾 Storage** - Google Drive for documents, Supabase for vector database
+
+### Use Cases
+- Personal knowledge base (research papers, notes, documentation)
+- Business information lookup (policies, procedures, product specs)
+- Customer support (FAQs, troubleshooting guides)
+- Educational assistant (study materials, course content)
+- Legal/medical document consultation
 
 ---
 
@@ -117,6 +131,13 @@ $$;
 
 ## ⚙️ 3. n8n Workflow Setup
 
+### 📦 Import Pre-built Workflows
+
+The repository includes pre-configured n8n workflows with sensitive information redacted:
+- **File**: `n8n_workflow_redacted.json`
+- All API keys, credentials, and sensitive data replaced with `REDACTED`
+- Import into your n8n instance and replace placeholders with your actual credentials
+
 ### 🔹 Workflow 1: File Upload → Vector Embedding Pipeline
 
 **Purpose**: Automatically process uploaded files and store them as searchable embeddings
@@ -147,7 +168,15 @@ $$;
 3. **Supabase Match** - Finds top-k most relevant document chunks
 4. **Cohere Reranking** - Re-ranks results for improved relevance
 5. **Context Assembly** - Formats retrieved documents as context
-6. **GPT Generation** - Creates answer using retrieved knowledge
+6. **GPT Generation** - Creates answer using retrieved knowledge with system prompt:
+   ```
+   # OBJECTIVE
+   - Retrieve and synthesize the most relevant information from the vector database, 
+     which serves as your primary knowledge source.
+   - Use this information to generate accurate, context-aware, and helpful responses 
+     to the user's requests.
+   - Prioritize precision, clarity, and relevance in all outputs.
+   ```
 7. **Response** - Returns formatted answer to voice agent
 
 #### Webhook Configuration:
@@ -206,8 +235,11 @@ Deliver precise, knowledge-grounded responses that help the user efficiently rea
 
 ---
 
-## 💻 5. React Frontend (Optional)
-<img width="896" height="925" alt="image" src="https://github.com/user-attachments/assets/9fedc38e-7e96-4f8b-a6fb-44c67c1ded46" />
+## 💻 5. React Frontend
+
+### Repository Structure
+- **Frontend Code**: Located in the `frontend/` folder
+- **n8n Workflows**: `n8n_workflow_redacted.json` (import and configure with your credentials)
 
 ### Features
 - Direct integration with ElevenLabs Voice Agent SDK
@@ -215,39 +247,42 @@ Deliver precise, knowledge-grounded responses that help the user efficiently rea
 - Document upload interface
 - Conversation history
 
-### Quick Start
+### Installation & Setup
+
+1. **Clone the Repository**
 ```bash
-# Install dependencies
-npm install @elevenlabs/sdk react
-
-# Add to your React component
-import { Conversation } from '@elevenlabs/sdk';
-
-// Initialize with your agent ID
-const conversation = await Conversation.startSession({
-  agentId: 'your-agent-id',
-  apiKey: 'your-elevenlabs-api-key'
-});
+git clone https://github.com/petermartens98/VoiceRAG-AI-Powered-Voice-Assistant-with-Knowledge-Retrieval.git
+cd VoiceRAG-AI-Powered-Voice-Assistant-with-Knowledge-Retrieval/frontend
 ```
 
----
+2. **Install Dependencies**
+```bash
+npm install
+```
 
-## 🔧 Configuration Tips
+3. **Configure Your Agent ID**
+   - Open `frontend/src/App.js`
+   - Replace the placeholder `agentId` with your own ElevenLabs Agent ID:
+   ```javascript
+   const agentId = "your-agent-id-here"; // Replace with your actual agent ID
+   ```
 
-### Performance Optimization
-- **Top-K Results**: Start with 3-5 matches, increase if answers lack context
-- **Model Selection**: GPT-4o-mini for speed, GPT-4o for complex reasoning
-- **Embedding Model**: Use `text-embedding-3-small` for better cost/performance
+4. **Run the Application**
+```bash
+npm start
+```
 
-### Cost Management
-- `text-embedding-3-small` provides excellent cost/performance balance
-- Cache frequently asked questions
-- Set token limits on GPT responses
+### Updating the App
+```bash
+# Pull latest changes
+git pull origin main
 
-### Quality Improvements
-- Include metadata (file name, date, source) in embeddings
-- Filter by document type or date in search
-- **Cohere Reranking** improves result relevance by reordering initial matches
+# Install any new dependencies
+npm install
+
+# Restart the application
+npm start
+```
 
 ---
 
