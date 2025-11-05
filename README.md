@@ -63,7 +63,3 @@ n8n flow connecting the voice interface to your RAG backend.
 
 Frontend built with React for seamless voice interactions and knowledge querying.
 Connects directly to the ElevenLabs Agent and n8n RAG workflows for end-to-end conversational intelligence.
-
----
-
-Would you like me to add a **“Quick Start”** section (setup instructions, environment variables, and run commands)? It’d make the README more useful for GitHub.
