@@ -1,65 +1,298 @@
+# 🎙️ VoiceRAG: AI-Powered Voice Assistant with Knowledge Retrieval
 
-# **VoiceRAG: AI-Powered Voice Assistant with Knowledge Retrieval**
+> Combine natural voice interaction with intelligent document search using RAG (Retrieval-Augmented Generation)
+
+## 🌟 Overview
+
+**VoiceRAG** is an end-to-end voice-powered knowledge assistant that lets you talk to your documents. It combines:
+
+- **🗣️ Voice Interaction** via ElevenLabs Voice Agents
+- **🧠 AI Intelligence** powered by OpenAI GPT models
+- **📚 Document Retrieval** using vector embeddings and semantic search
+- **⚡ Automation** through n8n workflows
+- **💾 Storage** with Google Drive and Supabase
+
+Ask questions naturally, and get answers drawn from your own knowledge base—all through voice.
 
 ---
 
-## 🧠 Overview
+## 🏗️ Architecture
 
-**VoiceRAG** combines **voice interaction** with **retrieval-augmented generation (RAG)** for intelligent, conversational access to your stored knowledge.
-It integrates **ElevenLabs Voice Agents**, **OpenAI GPT models**, **Supabase/Vector databases**, and **n8n automations** for smooth knowledge-to-voice workflows.
+```
+User Voice Input → ElevenLabs Agent → n8n Webhook → RAG Search (Supabase) → GPT Response → Voice Output
+                                                            ↑
+                                                    Embedded Documents
+                                                            ↑
+                                          Google Drive Files → n8n Pipeline
+```
 
 ---
 
-## ☁️ Google Drive File Storage Integration
+## 🚀 Getting Started
 
-Store and manage files in Google Drive for embedding and retrieval through automated pipelines.
+### Prerequisites
+
+- [n8n](https://n8n.io/) (self-hosted or cloud)
+- [Supabase](https://supabase.com/) account
+- [OpenAI API](https://platform.openai.com/) key
+- [ElevenLabs](https://elevenlabs.io/) account
+- [Google Cloud](https://console.cloud.google.com/) project (for Drive integration)
 
 ---
 
-## ⚙️ n8n Automations
+## 📁 1. Google Drive Setup
 
-### 🔹 File Upload → Embedding Vector Storage
+### Enable File Storage for Documents
 
-Automated flow for uploading and embedding files into your RAG database.
+1. **Create Google OAuth Credentials**
+   - Follow the [n8n Google OAuth guide](https://docs.n8n.io/integrations/builtin/credentials/google/oauth-single-service/#create-your-google-oauth-client-credentials)
+   - Enable Google Drive API in your Google Cloud Console
+   - Download OAuth credentials JSON
+
+2. **Connect to n8n**
+   - Add Google Drive credentials in n8n
+   - Create a dedicated folder for VoiceRAG documents
+   - Set up file watch triggers for automatic processing
+
+---
+
+## 🗄️ 2. Supabase Database Setup
+
+### Initialize Vector Database
+
+Run the following SQL in your Supabase SQL Editor:
+
+```sql
+-- Enable the pgvector extension for vector similarity search
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Create documents table with vector embeddings
+CREATE TABLE documents (
+  id BIGSERIAL PRIMARY KEY,
+  content TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  embedding VECTOR(1536),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create index for faster similarity searches
+CREATE INDEX ON documents USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 100);
+
+-- Create function to search documents by semantic similarity
+CREATE OR REPLACE FUNCTION match_documents (
+  query_embedding VECTOR(1536),
+  match_count INT DEFAULT 5,
+  filter JSONB DEFAULT '{}'
+)
+RETURNS TABLE (
+  doc_id BIGINT,
+  content TEXT,
+  metadata JSONB,
+  similarity FLOAT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    d.id AS doc_id,
+    d.content,
+    d.metadata,
+    1 - (d.embedding <=> query_embedding) AS similarity
+  FROM documents d
+  WHERE d.metadata @> filter
+  ORDER BY d.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+```
+
+### What This Does
+- **pgvector extension**: Enables vector similarity operations
+- **documents table**: Stores text chunks with their vector embeddings (1536 dimensions for OpenAI)
+- **match_documents function**: Performs semantic search and returns most relevant documents
+
+---
+
+## ⚙️ 3. n8n Workflow Setup
+
+### 🔹 Workflow 1: File Upload → Vector Embedding Pipeline
+
+**Purpose**: Automatically process uploaded files and store them as searchable embeddings
 
 <img width="1006" height="394" alt="n8n upload flow" src="https://github.com/user-attachments/assets/631a018c-9f95-4e9c-ac1e-4d97fb15b868" />
 
-#### Key Features
+#### Flow Steps:
+1. **Google Drive Trigger** - Watches for new files (.txt, .pdf)
+2. **File Content Extraction** - Reads and parses document content
+3. **Text Chunking** - Splits large documents into manageable pieces
+4. **OpenAI Embeddings** - Converts text chunks to 1536-dim vectors
+5. **Supabase Insert** - Stores embeddings with metadata in database
 
-* Automatic vector embedding pipeline
-* Integration with OpenAI Embeddings and Supabase
-* Event-triggered from Google Drive uploads
-* Works with .txt or .pdf files
+#### Key Configuration:
+- **Chunk Size**: 1000 characters (adjustable)
+- **Overlap**: 200 characters (maintains context between chunks)
+- **Model**: `text-embedding-3-small` or `text-embedding-ada-002`
 
 ---
 
-### 🔹 Voice Assistant RAG Webhook
+### 🔹 Workflow 2: Voice Agent RAG Webhook
 
-n8n flow connecting the voice interface to your RAG backend.
+**Purpose**: Handles real-time voice queries by retrieving relevant context and generating responses
 
 <img width="680" height="526" alt="n8n webhook flow" src="https://github.com/user-attachments/assets/5b2104ed-2572-4ccf-9d11-1493ffd52afa" />
 
-#### Key Features
+#### Flow Steps:
+1. **Webhook Trigger** - Receives query from ElevenLabs agent
+2. **Query Embedding** - Converts user question to vector
+3. **Supabase Match** - Finds top-k most relevant document chunks
+4. **Context Assembly** - Formats retrieved documents as context
+5. **GPT Generation** - Creates answer using retrieved knowledge
+6. **Response** - Returns formatted answer to voice agent
 
-* Webhook connection to ElevenLabs Voice Agent
-* Uses **OpenAI GPT-4o-mini** (swap models freely)
-* RAG system prompt integration for context-aware responses
-
----
-
-## 🗣️ ElevenLabs Voice Agent
-
-* **Agent Dashboard:** [ElevenLabs Agents](https://elevenlabs.io/app/agents/agents)
-* **Model Used:** GPT-4o-mini *(customizable)*
-* **RAG Tool Integration:**
-
-  1. Add tool titled `Knowledge Retrieval Tool` (connected to your n8n webhook)
-* **Custom System Prompt:**
-  Designed for retrieval-augmented conversations powered by your uploaded files.
+#### Webhook Configuration:
+- **Method**: POST
+- **Authentication**: API key recommended
+- **Timeout**: 30 seconds (for complex queries)
 
 ---
 
-## 💻 React Web App Integration
+## 🗣️ 4. ElevenLabs Voice Agent Configuration
 
-Frontend built with React for seamless voice interactions and knowledge querying.
-Connects directly to the ElevenLabs Agent and n8n RAG workflows for end-to-end conversational intelligence.
+### Setup Your Voice Agent
+
+1. **Navigate to**: [ElevenLabs Agent Dashboard](https://elevenlabs.io/app/agents/agents)
+
+2. **Create New Agent**:
+   - Choose voice and language
+   - Select conversation model: **GPT-4o-mini** (recommended for speed/cost) or **GPT-4o** (for complex reasoning)
+
+3. **Add RAG Tool**:
+   - Tool Name: `rag-knowledge-tool`
+   - Description: "Search the knowledge base for relevant information to answer user questions"
+   - Webhook URL: Your n8n webhook endpoint from Workflow 2
+   - Method: POST
+
+4. **System Prompt Example**:
+```
+You are a helpful voice assistant with access to a knowledge base. When users ask questions:
+
+1. Use the rag-knowledge-tool to search for relevant information
+2. Synthesize the retrieved context into clear, conversational answers
+3. If no relevant information is found, say so honestly
+4. Keep responses concise for voice delivery (2-3 sentences when possible)
+5. Maintain a friendly, professional tone
+
+Always cite when you're using information from the knowledge base by saying "According to your documents..." or "Based on what I found..."
+```
+
+### Testing Your Agent
+- Use the test interface to verify RAG tool calls
+- Check that document retrieval is working
+- Tune the system prompt based on response quality
+
+---
+
+## 💻 5. React Frontend (Optional)
+
+### Features
+- Direct integration with ElevenLabs Voice Agent SDK
+- Visual feedback during voice interactions
+- Document upload interface
+- Conversation history
+
+### Quick Start
+```bash
+# Install dependencies
+npm install @elevenlabs/sdk react
+
+# Add to your React component
+import { Conversation } from '@elevenlabs/sdk';
+
+// Initialize with your agent ID
+const conversation = await Conversation.startSession({
+  agentId: 'your-agent-id',
+  apiKey: 'your-elevenlabs-api-key'
+});
+```
+
+---
+
+## 🔧 Configuration Tips
+
+### Performance Optimization
+- **Chunk Size**: Smaller chunks (500-800 chars) for precise answers, larger (1500-2000) for context
+- **Top-K Results**: Start with 3-5 matches, increase if answers lack context
+- **Model Selection**: GPT-4o-mini for speed, GPT-4o for complex reasoning
+
+### Cost Management
+- Use `text-embedding-3-small` instead of Ada-002 (5x cheaper)
+- Cache frequently asked questions
+- Set token limits on GPT responses
+
+### Quality Improvements
+- Include metadata (file name, date, source) in embeddings
+- Filter by document type or date in search
+- Add re-ranking step for better relevance
+
+---
+
+## 📊 Usage Example
+
+**User**: "What were the key findings from the Q4 report?"
+
+**System Flow**:
+1. Voice → ElevenLabs → n8n webhook
+2. n8n embeds query → searches Supabase
+3. Retrieves relevant Q4 report chunks
+4. GPT synthesizes answer from context
+5. Response → ElevenLabs → Voice output
+
+**Assistant**: "According to your Q4 report, the key findings were: revenue grew 23% year-over-year, customer retention improved to 94%, and the new product line exceeded targets by 18%."
+
+---
+
+## 🐛 Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| No documents retrieved | Check embedding dimensions match (1536), verify Supabase connection |
+| Slow responses | Reduce top-k results, optimize chunk size, check n8n workflow timeouts |
+| Irrelevant answers | Improve chunking strategy, adjust system prompt, add metadata filters |
+| Voice cuts off | Shorten GPT responses, increase ElevenLabs timeout settings |
+
+---
+
+## 🔐 Security Considerations
+
+- Store API keys in environment variables
+- Use Supabase Row Level Security (RLS)
+- Implement webhook authentication
+- Sanitize user inputs before processing
+- Consider data privacy for sensitive documents
+
+---
+
+## 📚 Resources
+
+- [n8n Documentation](https://docs.n8n.io/)
+- [Supabase Vector Guide](https://supabase.com/docs/guides/ai/vector-columns)
+- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings)
+- [ElevenLabs Voice Agents](https://elevenlabs.io/docs/conversational-ai/overview)
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request.
+
+---
+
+## 📄 License
+
+MIT License - feel free to use this in your own projects!
+
+---
+
+**Built with ❤️ for voice-first knowledge access**
